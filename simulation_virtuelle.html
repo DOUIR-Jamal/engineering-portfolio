@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur de Tri Industriel - ENSA Safi</title>
+    <style>
+        :root {
+            --schneider-green: #009639; /* Le vert officiel Schneider Electric */
+            --schneider-green-hover: #007a2e;
+            --schneider-dark: #212721;
+            --bg-color: #f4f6f4; 
+            --panel-bg: #ffffff; 
+            --panel-border: #d2d7d2; 
+            --text-color: #2d3732; 
+            --plc-red: #da291c;
+            --box-large-color: #b86125;
+            --box-small-color: #e29b12;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-height: 100vh;
+        }
+
+        /* --- En-tête Académique Style Schneider --- */
+        .academic-header {
+            background: linear-gradient(135deg, var(--schneider-dark) 0%, #111411 100%);
+            border-left: 6px solid var(--schneider-green);
+            border-radius: 4px;
+            padding: 18px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .header-left h1 {
+            font-size: 1.4rem;
+            color: #ffffff;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .header-left h2 {
+            font-size: 1rem;
+            color: var(--schneider-green);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .header-left h3 {
+            font-size: 0.9rem;
+            color: #b3bbb3;
+            font-weight: normal;
+        }
+
+        .header-right {
+            text-align: right;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #ffffff;
+            line-height: 1.5;
+            border-left: 2px solid var(--schneider-green);
+            padding-left: 20px;
+        }
+
+        .header-right .prof {
+            color: var(--schneider-green);
+            font-weight: bold;
+        }
+
+        .header-right .students {
+            color: #cbd5e1;
+        }
+
+        /* --- Configuration Layout --- */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+        }
+
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Vue de la Ligne de Production */
+        .factory-view {
+            background-color: #eaeeea; 
+            height: 420px;
+            border-radius: 4px;
+            border: 1px solid var(--panel-border);
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        /* Tapis Convoyeur */
+        .conveyor {
+            position: absolute;
+            top: 170px;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            background: repeating-linear-gradient(90deg, #d2d7d2, #d2d7d2 25px, #9ca49c 25px, #9ca49c 50px);
+            border-top: 3px solid #5a625a;
+            border-bottom: 3px solid #414741;
+            z-index: 4;
+        }
+        
+        .conveyor.moving {
+            animation: moveConveyor 0.5s linear infinite;
+        }
+
+        @keyframes moveConveyor {
+            0% { background-position: 0 0; }
+            100% { background-position: 50px 0; }
+        }
+
+        /* Cartons */
+        .box {
+            position: absolute;
+            left: -100px;
+            border-radius: 3px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #ffffff;
+            z-index: 5;
+        }
+        .box.large {
+            width: 76px;
+            height: 66px;
+            top: 177px;
+            background-color: var(--box-large-color);
+            border: 1.5px solid #d47e43;
+            font-size: 0.8rem;
+        }
+        .box.small {
+            width: 44px;
+            height: 38px;
+            top: 191px;
+            background-color: var(--box-small-color);
+            border: 1.5px solid #ffbe42;
+            font-size: 0.7rem;
+        }
+
+        /* Capteurs Industriels */
+        .sensor-bracket {
+            position: absolute;
+            top: 250px; 
+            width: 2px;
+            height: 40px;
+            background-color: #5a625a;
+        }
+        .sensor-head {
+            position: absolute;
+            top: 250px; 
+            width: 22px;
+            height: 22px;
+            background-color: #ffffff;
+            border: 2px solid #5a625a;
+            border-radius: 3px;
+            transform: translateX(-10px);
+            z-index: 6;
+        }
+        .sensor-head.active {
+            border-color: var(--schneider-green);
+            background-color: #e5f9ec;
+            box-shadow: 0 0 10px rgba(0, 150, 57, 0.6);
+        }
+
+        #sensor1-bracket, #sensor1-head { left: 160px; }
+        #sensor2-bracket, #sensor2-head { left: 480px; }
+
+        /* Éjecteurs / Distributeurs Pneumatiques */
+        .cylinder-body {
+            position: absolute;
+            top: 40px;
+            width: 42px;
+            height: 65px;
+            background-color: #e1e6e1;
+            border: 1px solid #5a625a;
+            border-radius: 2px;
+            z-index: 10;
+        }
+        .cylinder-rod {
+            position: absolute;
+            top: 105px;
+            width: 12px;
+            height: 30px;
+            background-color: #a7b0a7;
+            transform-origin: top;
+            transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            z-index: 9;
+        }
+        .cylinder-plate {
+            position: absolute;
+            bottom: 0;
+            left: -16px;
+            width: 44px;
+            height: 6px;
+            background-color: #414741;
+        }
+
+        #cylinder1-body { left: 340px; } 
+        #cylinder1-rod { left: 355px; }
+
+        #cylinder2-body { left: 660px; } 
+        #cylinder2-rod { left: 675px; }
+
+        /* Fins de course (FDC) */
+        .fdc-switch {
+            position: absolute;
+            top: 45px;
+            width: 10px;
+            height: 10px;
+            background-color: #9ca49c;
+            border-radius: 50%;
+            z-index: 12;
+        }
+        .fdc-switch.active {
+            background-color: var(--schneider-green);
+            box-shadow: 0 0 8px var(--schneider-green);
+        }
+        #fdc1 { left: 366px; }
+        #fdc2 { left: 686px; }
+
+        /* Bacs de récupération */
+        .reject-area {
+            position: absolute;
+            top: 250px;
+            left: 0;
+            width: 100%;
+            height: 170px;
+            background-color: #f4f6f4;
+            z-index: 1;
+            border-top: 1px solid var(--panel-border);
+        }
+        .reject-bin {
+            position: absolute;
+            width: 160px;
+            height: 100px;
+            top: 35px;
+            border: 2px dashed var(--panel-border);
+            border-radius: 4px;
+            color: #798479;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        #bin-large { left: 281px; } 
+        #bin-small { left: 601px; } 
+
+        /* --- Tableau de bord de Commande --- */
+        .control-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .panel-block {
+            background-color: #fcfdfc;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 15px;
+        }
+
+        .panel-title-clear {
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #5a625a;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eaeeea;
+            padding-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-industrial {
+            flex: 1;
+            height: 46px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            color: white;
+            letter-spacing: 0.5px;
+        }
+        .btn-clear-marche { background-color: var(--schneider-green); }
+        .btn-clear-marche:hover { background-color: var(--schneider-green-hover); }
+        .btn-clear-arret { background-color: var(--plc-red); }
+        .btn-clear-arret:hover { background-color: #b81d13; }
+
+        .btn-clear-spawn {
+            flex: 1;
+            height: 46px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            color: white;
+        }
+        .btn-clear-spawn.large-btn { background-color: var(--box-large-color); }
+        .btn-clear-spawn.large-btn:hover { background-color: #974e1d; }
+        .btn-clear-spawn.small-btn { background-color: var(--box-small-color); }
+        .btn-clear-spawn.small-btn:hover { background-color: #bf810a; }
+
+        .indicator-light {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .led-circle {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #cbd5e1;
+        }
+        .led-circle.green.active { background-color: var(--schneider-green); box-shadow: 0 0 8px var(--schneider-green); }
+        .led-circle.red.active { background-color: var(--plc-red); box-shadow: 0 0 8px var(--plc-red); }
+
+        /* --- Automate Zelio Logic --- */
+        .plc-container {
+            background-color: var(--schneider-dark);
+            color: #ffffff;
+            border-radius: 4px;
+            border: 1px solid #111411;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .plc-header {
+            background-color: #111411;
+            color: var(--schneider-green);
+            padding: 8px;
+            border-radius: 3px;
+            text-align: center;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 0.9rem;
+            border-bottom: 2px solid var(--schneider-green);
+        }
+
+        .plc-block {
+            background-color: #2e362e;
+            border: 1px solid #414741;
+            border-radius: 3px;
+            padding: 10px;
+        }
+
+        .plc-block h3 {
+            font-size: 0.75rem;
+            margin-bottom: 8px;
+            color: #a7b0a7;
+            text-transform: uppercase;
+            border-bottom: 1px solid #414741;
+            padding-bottom: 4px;
+        }
+
+        .io-row {
+            display: grid;
+            grid-template-columns: 35px 25px 1fr;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        .io-led {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #5a625a;
+        }
+        .io-led.input-on { background-color: #ff9f05; box-shadow: 0 0 6px #ff9f05; }
+        .io-led.output-on { background-color: var(--schneider-green); box-shadow: 0 0 6px var(--schneider-green); }
+        .io-led.output-red-on { background-color: var(--plc-red); box-shadow: 0 0 6px var(--plc-red); }
+        .io-tag { font-weight: bold; color: #69c4ff; }
+        .io-desc { color: #cbd5e1; }
+
+        .bottom-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .grafcet-panel, .log-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 15px;
+            height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .grafcet-flow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .step {
+            border: 1px solid var(--panel-border);
+            background-color: #fcfdfc;
+            padding: 5px 10px;
+            min-width: 250px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 0.75rem;
+            border-radius: 3px;
+            color: #5a625a;
+        }
+        .step.active {
+            border-color: var(--schneider-green);
+            color: var(--schneider-green-hover);
+            background-color: #e5f9ec;
+            font-weight: bold;
+            box-shadow: inset 0 0 4px rgba(0,150,57,0.1);
+        }
+        .transition { width: 25px; height: 1px; background-color: #9ca49c; }
+        .log-list { list-style: none; font-family: monospace; font-size: 0.75rem; }
+        .log-item { padding: 4px 0; border-bottom: 1px solid #eaeeea; color: #414741; }
+
+        .label {
+            position: absolute;
+            font-size: 0.65rem;
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 1px solid var(--panel-border);
+            padding: 2px 5px;
+            border-radius: 2px;
+            font-family: monospace;
+            color: #414741;
+            z-index: 15;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="academic-header">
+        <div class="header-left">
+            <h1>École Nationale des Sciences Appliquées - Safi</h1>
+            <h2>Département Génie Industriel</h2>
+            <h3>Génie Mécatronique et Systèmes Intelligents</h3>
+        </div>
+        <div class="header-right">
+            <span class="prof">Encadré par :</span> Mr. REDDAK Moussa<br>
+            <span class="prof">Réalisé par :</span> 
+            <span class="students">Mr. DOUIR Jamal</span><br>
+            <span style="visibility: hidden;">Réalisé par :</span> 
+            <span class="students">Mr. BOUTCHICH Hamza</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="left-column">
+            <div class="factory-view">
+                <div class="reject-area">
+                    <div class="reject-bin" id="bin-large">Zone Grand Carton</div>
+                    <div class="reject-bin" id="bin-small">Zone Petit Carton</div>
+                </div>
+
+                <div class="sensor-bracket" id="sensor1-bracket"></div>
+                <div class="sensor-head" id="sensor1-head"></div>
+                <div class="label" style="top: 275px; left: 85px;">I6: Capteur Grand (CG)</div>
+
+                <div class="fdc-switch" id="fdc1"></div>
+                <div class="cylinder-body" id="cylinder1-body"></div>
+                <div class="cylinder-rod" id="cylinder1-rod"><div class="cylinder-plate"></div></div>
+                <div class="label" style="top: 15px; left: 335px;">Q4/I3: Distributeur 1 / FDC1</div>
+
+                <div class="sensor-bracket" id="sensor2-bracket"></div>
+                <div class="sensor-head" id="sensor2-head"></div>
+                <div class="label" style="top: 275px; left: 405px;">I5: Capteur Petit (CP)</div>
+
+                <div class="fdc-switch" id="fdc2"></div>
+                <div class="cylinder-body" id="cylinder2-body"></div>
+                <div class="cylinder-rod" id="cylinder2-rod"><div class="cylinder-plate"></div></div>
+                <div class="label" style="top: 15px; left: 655px;">Q5/I4: Distributeur 2 / FDC2</div>
+
+                <div class="conveyor" id="conveyor-belt"></div>
+                <div class="label" style="top: 225px; left: 15px;">Q3: Convoyeur</div>
+
+                <div id="box-container"></div>
+            </div>
+
+            <div class="control-panel">
+                <div class="panel-block">
+                    <div class="panel-title-clear">Contrôle Système</div>
+                    <div class="flex-row" style="margin-bottom: 12px;">
+                        <button class="btn-industrial btn-clear-marche" id="btn-marche-hw">MARCHE</button>
+                        <button class="btn-industrial btn-clear-arret" id="btn-arret-hw">ARRÊT</button>
+                    </div>
+                    <div class="flex-row">
+                        <div class="indicator-light"><div class="led-circle green" id="led-run-hw"></div> Q2: Voyant Vert</div>
+                        <div class="indicator-light"><div class="led-circle red active" id="led-stop-hw"></div> Q1: Voyant Rouge</div>
+                    </div>
+                </div>
+
+                <div class="panel-block">
+                    <div class="panel-title-clear">Alimentation Ligne</div>
+                    <div class="flex-row">
+                        <button class="btn-clear-spawn large-btn" onclick="spawnBox('large')">GRAND CARTON</button>
+                        <button class="btn-clear-spawn small-btn" onclick="spawnBox('small')">PETIT CARTON</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="plc-container">
+            <div class="plc-header">SCHNEIDER ZELIO LOGIC</div>
+            <div class="plc-grid">
+                <div class="plc-block">
+                    <h3>Inputs (Entrées)</h3>
+                    <div class="io-row"><span class="io-tag">I1</span><div class="io-led input-on" id="led-I1"></div><span class="io-desc">Bouton Arrêt (NC)</span></div>
+                    <div class="io-row"><span class="io-tag">I2</span><div class="io-led" id="led-I2"></div><span class="io-desc">Bouton Marche (NO)</span></div>
+                    <div class="io-row"><span class="io-tag">I3</span><div class="io-led input-on" id="led-I3"></div><span class="io-desc">FDC Repos V1</span></div>
+                    <div class="io-row"><span class="io-tag">I4</span><div class="io-led input-on" id="led-I4"></div><span class="io-desc">FDC Repos V2</span></div>
+                    <div class="io-row"><span class="io-tag">I5</span><div class="io-led" id="led-I5"></div><span class="io-desc">Capteur Petit (CP)</span></div>
+                    <div class="io-row"><span class="io-tag">I6</span><div class="io-led" id="led-I6"></div><span class="io-desc">Capteur Grand (CG)</span></div>
+                </div>
+
+                <div class="plc-block">
+                    <h3>Outputs (Sorties)</h3>
+                    <div class="io-row"><span class="io-tag">Q1</span><div class="io-led output-on" id="led-Q1"></div><span class="io-desc">Voyant Rouge (Stop)</span></div>
+                    <div class="io-row"><span class="io-tag">Q2</span><div class="io-led" id="led-Q2"></div><span class="io-desc">Voyant Vert (Run)</span></div>
+                    <div class="io-row"><span class="io-tag">Q3</span><div class="io-led" id="led-Q3"></div><span class="io-desc">Moteur Convoyeur</span></div>
+                    <div class="io-row"><span class="io-tag">Q4</span><div class="io-led" id="led-Q4"></div><span class="io-desc">Distributeur 1 (V1)</span></div>
+                    <div class="io-row"><span class="io-tag">Q5</span><div class="io-led" id="led-Q5"></div><span class="io-desc">Distributeur 2 (V2)</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-row">
+        <div class="grafcet-panel">
+            <h2 style="font-size:0.8rem; margin-bottom:10px; color:#5a625a; text-transform:uppercase; font-weight: bold;">Séquence Grafcet G7</h2>
+            <div class="grafcet-flow">
+                <div class="step active" id="step-0">0: Attente (Q1=1)</div>
+                <div class="transition"></div>
+                <div class="step" id="step-1">1: Convoyeur en marche (Q3=1, Q2=1)</div>
+                <div class="transition"></div>
+                <div class="step" id="step-2">2: Positionnement Grand Carton (Q3=1, Q2=1)</div>
+                <div class="transition"></div>
+                <div class="step" id="step-3">3: Éjection Grand Carton (Q4=1, Q2=1)</div>
+                <div class="transition"></div>
+                <div class="step" id="step-4">4: Positionnement Petit Carton (Q3=1, Q2=1)</div>
+                <div class="transition"></div>
+                <div class="step" id="step-5">5: Éjection Petit Carton (Q5=1, Q2=1)</div>
+            </div>
+        </div>
+
+        <div class="log-panel">
+            <h2 style="font-size:0.8rem; margin-bottom:10px; color:#5a625a; text-transform:uppercase; font-weight: bold;">Journal Interne</h2>
+            <ul class="log-list" id="log-list">
+                <li class="log-item">Système initialisé. Attente impulsion Marche (I2).</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const Inputs = { I1: true, I2: false, I3: true, I4: true, I5: false, I6: false };
+        const Outputs = { Q1: true, Q2: false, Q3: false, Q4: false, Q5: false };
+        
+        let currentStep = 0; 
+        let activeBox = null; 
+        let systemRunning = false; 
+        let animationFrameId = null;
+
+        function addLog(msg) {
+            const list = document.getElementById('log-list');
+            const item = document.createElement('li');
+            item.className = 'log-item';
+            item.innerText = msg;
+            list.insertBefore(item, list.firstChild);
+        }
+
+        function updatePLC_IO_Display() {
+            for(let i=1; i<=6; i++) {
+                const element = document.getElementById(`led-I${i}`);
+                if(element) element.classList.toggle('input-on', Inputs[`I${i}`]);
+            }
+            for(let q=1; q<=5; q++) {
+                const element = document.getElementById(`led-Q${q}`);
+                if(element) {
+                    if (q === 1) {
+                        element.classList.toggle('output-red-on', Outputs.Q1);
+                    } else {
+                        element.classList.toggle('output-on', Outputs[`Q${q}`]);
+                    }
+                }
+            }
+            document.getElementById('led-run-hw').classList.toggle('active', Outputs.Q2);
+            document.getElementById('led-stop-hw').classList.toggle('active', Outputs.Q1);
+            document.getElementById('conveyor-belt').classList.toggle('moving', Outputs.Q3);
+        }
+
+        function setGrafcetStep(stepNum) {
+            currentStep = stepNum;
+            for(let i=0; i<=5; i++) {
+                const el = document.getElementById(`step-${i}`);
+                if(el) el.classList.toggle('active', i === stepNum);
+            }
+        }
+
+        const btnMarcheHw = document.getElementById('btn-marche-hw');
+        const btnArretHw = document.getElementById('btn-arret-hw');
+
+        btnMarcheHw.addEventListener('mousedown', () => { if(Inputs.I1) { Inputs.I2 = true; updatePLC_IO_Display(); evalPLC_Logic(); } });
+        btnMarcheHw.addEventListener('mouseup', () => { Inputs.I2 = false; updatePLC_IO_Display(); });
+        btnArretHw.addEventListener('mousedown', () => { Inputs.I1 = false; updatePLC_IO_Display(); evalPLC_Logic(); });
+        btnArretHw.addEventListener('mouseup', () => { Inputs.I1 = true; updatePLC_IO_Display(); });
+
+        function spawnBox(type) {
+            if (!systemRunning || activeBox) return;
+            const container = document.getElementById('box-container');
+            const box = document.createElement('div');
+            box.className = `box ${type}`;
+            box.innerText = type === 'large' ? 'GRAND' : 'PETIT';
+            container.appendChild(box);
+
+            activeBox = { element: box, type: type, x: -100, ejected: false, targetReached: false };
+            addLog(`Pièce détectée en entrée : ${type === 'large' ? 'Grand Carton' : 'Petit Carton'}`);
+        }
+
+        function evalPLC_Logic() {
+            // Sécurité : Bouton Arrêt (I1 = false car NF)
+            if (!Inputs.I1) { 
+                systemRunning = false;
+                Outputs.Q1 = true; Outputs.Q2 = false; Outputs.Q3 = false; Outputs.Q4 = false; Outputs.Q5 = false;
+                setGrafcetStep(0); updatePLC_IO_Display();
+                addLog("Arrêt d'urgence système demandé (I1).");
+                return;
+            }
+
+            // Étape 0 -> Étape 1 : Conditions de marche (I2 appuyé, I1 OK)
+            if (currentStep === 0 && Inputs.I2 && Inputs.I1) {
+                systemRunning = true;
+                Outputs.Q1 = false; Outputs.Q2 = true; Outputs.Q3 = true;
+                setGrafcetStep(1); updatePLC_IO_Display();
+                addLog("Démarrage de la ligne. Convoyeur actif (Q3).");
+                return;
+            }
+
+            // Étape 1 : Aiguillage selon capteurs
+            if (currentStep === 1) {
+                if (Inputs.I6) { // Capteur Grand
+                    setGrafcetStep(2);
+                    addLog("Grand carton détecté par I6 (CG). Guidage vers Axe V1.");
+                } 
+                else if (Inputs.I5) { // Capteur Petit
+                    setGrafcetStep(4);
+                    addLog("Petit carton détecté par I5 (CP). Guidage vers Axe V2.");
+                }
+            }
+            updatePLC_IO_Display();
+        }
+
+        function triggerEjection(id) {
+            Outputs.Q3 = false; // Arrêt temporaire tapis
+            if(id === 1) Outputs.Q4 = true; // Sortie V1
+            if(id === 2) Outputs.Q5 = true; // Sortie V2
+            
+            Inputs[`I${id+2}`] = false; // Quitte son FDC repos
+            setGrafcetStep(id === 1 ? 3 : 5);
+            updatePLC_IO_Display();
+            
+            const rod = document.getElementById(`cylinder${id}-rod`);
+            const fdc = document.getElementById(`fdc${id}`);
+            
+            rod.style.transform = "scaleY(3.3)";
+            
+            setTimeout(() => {
+                if(!systemRunning) return;
+                
+                if(activeBox) {
+                    activeBox.element.style.top = "315px"; 
+                    activeBox.ejected = true;
+                }
+
+                setTimeout(() => {
+                    rod.style.transform = "scaleY(1)";
+                    if(id === 1) Outputs.Q4 = false;
+                    if(id === 2) Outputs.Q5 = false;
+
+                    setTimeout(() => {
+                        Inputs[`I${id+2}`] = true; // Retour au FDC repos
+                        fdc.classList.add('active');
+                        
+                        if(systemRunning) {
+                            Outputs.Q3 = true; // Relance convoyeur
+                            setGrafcetStep(1);
+                            addLog(`Éjection Vérin ${id} terminée. Reprise convoyeur (Q3).`);
+                            
+                            if(activeBox && activeBox.ejected) {
+                                activeBox.element.remove();
+                                activeBox = null;
+                            }
+                        }
+                        updatePLC_IO_Display();
+                    }, 250);
+                }, 350);
+
+            }, 300);
+        }
+
+        function simulationLoop() {
+            if (systemRunning && Outputs.Q3 && activeBox && !activeBox.ejected) {
+                activeBox.x += 2.0; 
+                activeBox.element.style.left = activeBox.x + "px";
+
+                const boxWidth = activeBox.type === 'large' ? 76 : 44;
+                const boxCenter = activeBox.x + (boxWidth / 2);
+
+                // Simulation Capteur I6 (Grand)
+                if (activeBox.type === 'large' && boxCenter >= 154 && boxCenter <= 166) {
+                    if(!Inputs.I6 && currentStep === 1) {
+                        Inputs.I6 = true;
+                        document.getElementById('sensor1-head').classList.add('active');
+                        evalPLC_Logic();
+                    }
+                } else {
+                    if(Inputs.I6) {
+                        Inputs.I6 = false;
+                        document.getElementById('sensor1-head').classList.remove('active');
+                    }
+                }
+
+                // Simulation Capteur I5 (Petit)
+                if (activeBox.type === 'small' && boxCenter >= 474 && boxCenter <= 486) {
+                    if(!Inputs.I5 && currentStep === 1) {
+                        Inputs.I5 = true;
+                        document.getElementById('sensor2-head').classList.add('active');
+                        evalPLC_Logic();
+                    }
+                } else {
+                    if(Inputs.I5) {
+                        Inputs.I5 = false;
+                        document.getElementById('sensor2-head').classList.remove('active');
+                    }
+                }
+
+                // Cible Éjection Vérin 1 (Grand Carton)
+                if (currentStep === 2 && activeBox.type === 'large' && boxCenter >= 361 && !activeBox.targetReached) {
+                    activeBox.targetReached = true;
+                    activeBox.x = 361 - (boxWidth / 2); 
+                    activeBox.element.style.left = activeBox.x + "px";
+                    triggerEjection(1);
+                }
+
+                // Cible Éjection Vérin 2 (Petit Carton)
+                if (currentStep === 4 && activeBox.type === 'small' && boxCenter >= 681 && !activeBox.targetReached) {
+                    activeBox.targetReached = true;
+                    activeBox.x = 681 - (boxWidth / 2); 
+                    activeBox.element.style.left = activeBox.x + "px";
+                    triggerEjection(2);
+                }
+
+                if (activeBox.x > 960) {
+                    activeBox.element.remove();
+                    activeBox = null;
+                }
+            }
+
+            document.getElementById('fdc1').classList.toggle('active', Inputs.I3);
+            document.getElementById('fdc2').classList.toggle('active', Inputs.I4);
+
+            animationFrameId = requestAnimationFrame(simulationLoop);
+        }
+
+        animationFrameId = requestAnimationFrame(simulationLoop);
+    </script>
+</body>
+</html>
